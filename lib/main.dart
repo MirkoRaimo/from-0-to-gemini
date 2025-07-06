@@ -4,13 +4,27 @@ import 'package:myapp/sections/image_section.dart';
 import 'package:myapp/sections/text_section.dart';
 import 'package:myapp/sections/title_section.dart';
 
-void main() => runApp(const MyApp());
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_ai/firebase_ai.dart';
+import 'firebase_options.dart';
+
+//void main() => runApp(const MyApp());
+
+void main() async {
+  //To avoid "Binding has not yet been initialized"
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    generateTextWithGemini();
+
     const String appTitle = 'Flutter layout demo';
     return MaterialApp(
       title: appTitle,
@@ -25,15 +39,25 @@ class MyApp extends StatelessWidget {
                 location: 'Kandersteg, Switzerland',
               ),
               ButtonSection(),
-              TextSection(
-                description:
-                    'Lake Oeschinen lies at the foot of the Blüemlisalp in the '
-                    'Bernese Alps. Situated 1,578 meters above sea level, it '
-                    'is one of the larger Alpine Lakes. A gondola ride from '
-                    'Kandersteg, followed by a half-hour walk through pastures '
-                    'and pine forest, leads you to the lake, which warms to 20 '
-                    'degrees Celsius in the summer. Activities enjoyed here '
-                    'include rowing, and riding the summer toboggan run.',
+              FutureBuilder(
+                future: generateTextWithGemini(),
+                builder: (
+                  BuildContext context,
+                  AsyncSnapshot<String?> snapshot,
+                ) {
+                  if (snapshot.hasError) {
+                    return TextSection(description: 'Error');
+                  } else if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsetsGeometry.all(8),
+                      child: CircularProgressIndicator(),
+                    );
+                  } else if (snapshot.hasData) {
+                    return TextSection(description: snapshot.data ?? 'Foo');
+                  } else {
+                    return Container();
+                  }
+                },
               ),
             ],
           ),
@@ -41,4 +65,18 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<String?> generateTextWithGemini() async {
+  final GenerativeModel model = FirebaseAI.googleAI().generativeModel(
+    model: 'gemini-2.5-flash',
+  );
+
+  final List<Content> prompt = [
+    Content.text('Write a story abouta a magic Lake'),
+  ];
+
+  final GenerateContentResponse response = await model.generateContent(prompt);
+
+  return response.text;
 }
