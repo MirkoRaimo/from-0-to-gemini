@@ -69,6 +69,29 @@ class MyApp extends StatelessWidget {
               ),
 
               FutureBuilder(
+                future: generateImageWithImagen(),
+                builder: (
+                  BuildContext context,
+                  AsyncSnapshot<ImagenInlineImage?> snapshot,
+                ) {
+                  if (snapshot.hasError) {
+                    return TextSection(description: 'Error: ${snapshot.error}');
+                  } else if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsetsGeometry.all(8),
+                      child: CircularProgressIndicator(),
+                    );
+                  } else if (snapshot.hasData) {
+                    final Uint8List imageBytes =
+                        snapshot.data!.bytesBase64Encoded;
+                    return Image.memory(imageBytes);
+                  } else {
+                    return Container();
+                  }
+                },
+              ),
+
+              FutureBuilder(
                 future: generateTextWithGemini(),
                 builder: (
                   BuildContext context,
@@ -134,4 +157,89 @@ Future<String?> generateTextWithGeminiFromImageWeb() async {
   ]);
 
   return response.text;
+}
+
+//Official doc, doesn't compile at the moment
+// Future<Unit8List?> generateImagesWithGeminiDoc() async {
+//   // Initialize the Gemini Developer API backend service
+//   // Create a `GenerativeModel` instance with a Gemini model that supports image output
+//   final model = FirebaseAI.googleAI().generativeModel(
+//     model: 'gemini-2.0-flash-preview-image-generation',
+//     // Configure the model to respond with text and images
+//     generationConfig: GenerationConfig(
+//       responseModalities: [ResponseModality.text, ResponseModality.image],
+//     ),
+//   );
+
+//   // Provide a text prompt instructing the model to generate an image
+//   final prompt = [
+//     Content.text(
+//       'Generate an image of the Eiffel Tower with fireworks in the background.',
+//     ),
+//   ];
+
+//   // To generate an image, call `generateContent` with the text input
+//   final response = await model.generateContent(prompt);
+//   if (response.inlineDataParts.isNotEmpty) {
+//     final imageBytes = response.inlineDataParts[0].bytes;
+//     // Process the image
+//   } else {
+//     // Handle the case where no images were generated
+//     print('Error: No images were generated.');
+//   }
+// }
+
+//Adapted by myself
+Future<Uint8List?> generateImagesWithGemini() async {
+  // Initialize the Gemini Developer API backend service
+  // Create a `GenerativeModel` instance with a Gemini model that supports image output
+  final model = FirebaseAI.googleAI().generativeModel(
+    model: 'gemini-2.0-flash-preview-image-generation',
+    // Configure the model to respond with text and images
+    generationConfig: GenerationConfig(
+      responseModalities: [ResponseModalities.text, ResponseModalities.image],
+    ),
+  );
+
+  // Provide a text prompt instructing the model to generate an image
+  final prompt = [
+    Content.text(
+      'Generate an image of the Eiffel Tower with fireworks in the background.',
+    ),
+  ];
+
+  // To generate an image, call `generateContent` with the text input
+  final response = await model.generateContent(prompt);
+  if (response.inlineDataParts.isNotEmpty) {
+    //final imageBytes = response.inlineDataParts[0].bytes;
+    final imageBytes = response.inlineDataParts.first.bytes;
+    return imageBytes;
+    // Process the image
+  } else {
+    // Handle the case where no images were generated
+    return null;
+  }
+}
+
+Future<ImagenInlineImage?> generateImageWithImagen() async {
+  // Initialize the Gemini Developer API backend service
+  final ai = FirebaseAI.googleAI();
+
+  // Create an `ImagenModel` instance with an Imagen model that supports your use case
+  final model2 = ai.imagenModel(model: 'imagen-3.0-generate-002');
+
+  // Provide an image generation prompt
+  const prompt = 'An astronaut riding a horse.';
+
+  // To generate an image, call `generateImages` with the text prompt
+  final response = await model2.generateImages(prompt);
+
+  if (response.images.isNotEmpty) {
+    final image = response.images[0];
+    return image;
+    // Process the image
+  } else {
+    // Handle the case where no images were generated
+    return null;
+  }
 }
